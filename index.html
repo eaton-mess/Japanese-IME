@@ -1,778 +1,14 @@
-<!-- <!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Browser Japanese IME</title>
-  <style>
-    * { box-sizing: border-box; }
-
-    body {
-      margin: 0;
-      font-family: Inter, Arial, sans-serif;
-      background: #0f172a;
-      color: #e5e7eb;
-      min-height: 100vh;
-      padding: 24px;
-    }
-
-    .app {
-      width: min(1100px, 100%);
-      margin: 0 auto;
-      background: #111827;
-      border: 1px solid #334155;
-      border-radius: 22px;
-      padding: 24px;
-      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
-    }
-
-    h1 {
-      margin: 0 0 8px;
-      font-size: 30px;
-    }
-
-    p {
-      color: #94a3b8;
-      line-height: 1.6;
-    }
-
-    .grid {
-      display: grid;
-      grid-template-columns: 1.6fr 1fr;
-      gap: 18px;
-      margin-top: 22px;
-    }
-
-    @media (max-width: 920px) {
-      .grid {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    .panel {
-      background: #0b1220;
-      border: 1px solid #334155;
-      border-radius: 16px;
-      padding: 16px;
-    }
-
-    .label {
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: #93c5fd;
-      margin-bottom: 10px;
-    }
-
-    #editor {
-      width: 100%;
-      min-height: 320px;
-      border-radius: 14px;
-      border: 1px solid #475569;
-      background: #020617;
-      color: #f8fafc;
-      padding: 16px;
-      font-size: 28px;
-      line-height: 1.7;
-      outline: none;
-      white-space: pre-wrap;
-      word-break: break-word;
-      font-family: "Yu Gothic UI", "Meiryo", "Hiragino Sans", sans-serif;
-      caret-color: #fff;
-    }
-
-    #editor:focus {
-      border-color: #60a5fa;
-      box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.18);
-    }
-
-    .committed {
-      color: #f8fafc;
-    }
-
-    .composing {
-      color: #fff;
-      background: rgba(37, 99, 235, 0.18);
-      border-bottom: 2px solid #60a5fa;
-      border-radius: 4px;
-      padding: 0 2px;
-    }
-
-    .candidate-bar {
-      margin-top: 12px;
-      border: 1px solid #334155;
-      background: #020617;
-      border-radius: 14px;
-      padding: 14px;
-      min-height: 100px;
-    }
-
-    .candidate-list {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-top: 10px;
-    }
-
-    .candidate {
-      border: 1px solid #334155;
-      background: #1e293b;
-      color: #e2e8f0;
-      border-radius: 999px;
-      padding: 8px 12px;
-      font-size: 22px;
-    }
-
-    .candidate.active {
-      background: #2563eb;
-      border-color: #60a5fa;
-      color: white;
-    }
-
-    .controls {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin-top: 14px;
-    }
-
-    button {
-      border: 0;
-      border-radius: 10px;
-      padding: 10px 14px;
-      font-weight: 700;
-      cursor: pointer;
-      background: #2563eb;
-      color: white;
-    }
-
-    button.secondary {
-      background: #1e293b;
-      border: 1px solid #475569;
-      color: #e2e8f0;
-    }
-
-    code {
-      background: #0f172a;
-      padding: 2px 6px;
-      border-radius: 6px;
-    }
-
-    ul {
-      line-height: 1.7;
-      color: #cbd5e1;
-      padding-left: 18px;
-    }
-
-    .meta {
-      color: #cbd5e1;
-      font-size: 14px;
-    }
-
-    .status {
-      margin-top: 12px;
-      color: #94a3b8;
-      font-size: 14px;
-    }
-  </style>
-</head>
-<body>
-  <div class="app">
-    <h1>Browser Japanese IME Prototype</h1>
-    <p>
-      Hiragana-first browser IME with API-backed kanji and names lookup.
-      Press <strong>Space</strong> to cycle candidates and <strong>Enter</strong> to commit.
-    </p>
-
-    <div class="grid">
-      <div class="panel">
-        <div class="label">Editor</div>
-        <div id="editor" contenteditable="true" spellcheck="false"></div>
-        <div id="status" class="status">
-          Type romaji like <code>watashi</code>, <code>nihon</code>, <code>gakkou</code>, <code>kyamera</code>.
-        </div>
-
-        <div class="candidate-bar">
-          <div class="label">Candidates</div>
-          <div id="candidateMeta" class="meta">No active candidates</div>
-          <div id="candidateList" class="candidate-list"></div>
-        </div>
-
-        <div class="controls">
-          <button id="copyBtn">Copy text</button>
-          <button id="clearBtn" class="secondary">Clear</button>
-        </div>
-      </div>
-
-      <div class="panel">
-        <div class="label">Keys</div>
-        <ul>
-          <li><code>a-z</code>: build romaji reading</li>
-          <li><code>Space</code>: cycle candidates</li>
-          <li><code>Enter</code>: commit current candidate</li>
-          <li><code>Backspace</code>: edit current reading first</li>
-          <li><code>Esc</code>: return to plain hiragana candidate</li>
-          <li><code>← / →</code>: cycle candidates</li>
-        </ul>
-
-        <div class="label" style="margin-top:18px;">API Notes</div>
-        <ul>
-          <li>Set <code>API_URL</code> below to your endpoint.</li>
-          <li>Expected JSON shape: <code>{ words: [], names: [], preferKatakana: false }</code></li>
-          <li>If the API fails, the app falls back to local candidates.</li>
-        </ul>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    const API_URL = "https://your-api.example.com/api/japanese-ime";
-
-    const editor = document.getElementById("editor");
-    const status = document.getElementById("status");
-    const candidateMeta = document.getElementById("candidateMeta");
-    const candidateList = document.getElementById("candidateList");
-    const copyBtn = document.getElementById("copyBtn");
-    const clearBtn = document.getElementById("clearBtn");
-
-    const state = {
-      committed: "",
-      readingRomaji: "",
-      readingHiragana: "",
-      candidates: [],
-      candidateIndex: 0,
-      lookupToken: 0
-    };
-
-    const localFallbackDictionary = {
-      "わたし": ["私", "わたし"],
-      "ぼく": ["僕", "ぼく"],
-      "おれ": ["俺", "おれ"],
-      "あなた": ["あなた", "貴方"],
-      "なまえ": ["名前", "なまえ"],
-      "にほん": ["日本", "にほん"],
-      "にほんご": ["日本語", "にほんご"],
-      "とうきょう": ["東京", "とうきょう"],
-      "おおさか": ["大阪", "おおさか"],
-      "きょうと": ["京都", "きょうと"],
-      "がっこう": ["学校", "がっこう"],
-      "だいがく": ["大学", "だいがく"],
-      "せんせい": ["先生", "せんせい"],
-      "がくせい": ["学生", "がくせい"],
-      "かいしゃ": ["会社", "かいしゃ"],
-      "しごと": ["仕事", "しごと"],
-      "かいぎ": ["会議", "かいぎ"],
-      "でんしゃ": ["電車", "でんしゃ"],
-      "じどうしゃ": ["自動車", "じどうしゃ"],
-      "くるま": ["車", "くるま"],
-      "じかん": ["時間", "じかん"],
-      "きょう": ["今日", "きょう"],
-      "きのう": ["昨日", "きのう"],
-      "あした": ["明日", "あした"],
-      "いま": ["今", "いま"],
-      "あさ": ["朝", "あさ"],
-      "ひる": ["昼", "ひる"],
-      "よる": ["夜", "よる"],
-      "たべる": ["食べる", "たべる"],
-      "のむ": ["飲む", "のむ"],
-      "みる": ["見る", "みる"],
-      "よむ": ["読む", "よむ"],
-      "かく": ["書く", "かく"],
-      "はなす": ["話す", "はなす"],
-      "いく": ["行く", "いく"],
-      "くる": ["来る", "くる"],
-      "かえる": ["帰る", "かえる"],
-      "みず": ["水", "みず"],
-      "ほん": ["本", "ほん"],
-      "いえ": ["家", "いえ"],
-      "ひと": ["人", "ひと"],
-      "ともだち": ["友達", "ともだち"],
-      "でんわ": ["電話", "でんわ"],
-      "えん": ["円", "えん"],
-      "おかね": ["お金", "おかね"],
-      "てんき": ["天気", "てんき"],
-      "あめ": ["雨", "あめ"],
-      "ゆき": ["雪", "ゆき"],
-      "くに": ["国", "くに"],
-      "かんじ": ["漢字", "かんじ"],
-      "ひらがな": ["ひらがな"],
-      "かたかな": ["片仮名", "かたかな"],
-      "じょうほう": ["情報", "じょうほう"],
-      "きゃめら": ["キャメラ", "きゃめら"]
-    };
-
-    const localNamesDictionary = {
-      "すずき": ["鈴木"],
-      "さとう": ["佐藤"],
-      "たなか": ["田中"],
-      "たかはし": ["高橋"],
-      "やまだ": ["山田"],
-      "いとう": ["伊藤"],
-      "なかむら": ["中村"],
-      "こばやし": ["小林"]
-    };
-
-    const kanaMap = {
-      kya: "きゃ", kyu: "きゅ", kyo: "きょ",
-      gya: "ぎゃ", gyu: "ぎゅ", gyo: "ぎょ",
-      sha: "しゃ", shu: "しゅ", sho: "しょ",
-      sya: "しゃ", syu: "しゅ", syo: "しょ",
-      ja: "じゃ", ju: "じゅ", jo: "じょ",
-      jya: "じゃ", jyu: "じゅ", jyo: "じょ",
-      cha: "ちゃ", chu: "ちゅ", cho: "ちょ",
-      cya: "ちゃ", cyu: "ちゅ", cyo: "ちょ",
-      nya: "にゃ", nyu: "にゅ", nyo: "にょ",
-      hya: "ひゃ", hyu: "ひゅ", hyo: "ひょ",
-      bya: "びゃ", byu: "びゅ", byo: "びょ",
-      pya: "ぴゃ", pyu: "ぴゅ", pyo: "ぴょ",
-      mya: "みゃ", myu: "みゅ", myo: "みょ",
-      rya: "りゃ", ryu: "りゅ", ryo: "りょ",
-      fa: "ふぁ", fi: "ふぃ", fe: "ふぇ", fo: "ふぉ",
-      tsa: "つぁ", tsi: "つぃ", tse: "つぇ", tso: "つぉ",
-      she: "しぇ", che: "ちぇ", je: "じぇ",
-      ti: "てぃ", tu: "とぅ", di: "でぃ", du: "どぅ",
-      wi: "うぃ", we: "うぇ",
-      shi: "し", chi: "ち", tsu: "つ", fu: "ふ",
-      ka: "か", ki: "き", ku: "く", ke: "け", ko: "こ",
-      ga: "が", gi: "ぎ", gu: "ぐ", ge: "げ", go: "ご",
-      sa: "さ", su: "す", se: "せ", so: "そ",
-      za: "ざ", ji: "じ", zu: "ず", ze: "ぜ", zo: "ぞ",
-      ta: "た", te: "て", to: "と",
-      da: "だ", de: "で", do: "ど",
-      na: "な", ni: "に", nu: "ぬ", ne: "ね", no: "の",
-      ha: "は", hi: "ひ", he: "へ", ho: "ほ",
-      ba: "ば", bi: "び", bu: "ぶ", be: "べ", bo: "ぼ",
-      pa: "ぱ", pi: "ぴ", pu: "ぷ", pe: "ぺ", po: "ぽ",
-      ma: "ま", mi: "み", mu: "む", me: "め", mo: "も",
-      ya: "や", yu: "ゆ", yo: "よ",
-      ra: "ら", ri: "り", ru: "る", re: "れ", ro: "ろ",
-      wa: "わ", wo: "を",
-      a: "あ", i: "い", u: "う", e: "え", o: "お"
-    };
-
-    function escapeHtml(value) {
-      return value
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#39;");
-    }
-
-    function uniquePush(list, value) {
-      if (value && !list.includes(value)) list.push(value);
-    }
-
-    function isVowel(c) {
-      return "aeiou".includes(c);
-    }
-
-    function isConsonant(c) {
-      return /^[bcdfghjklmnpqrstvwxyz]$/.test(c);
-    }
-
-    function romajiToHiragana(input) {
-      let s = input.toLowerCase();
-      let result = "";
-      let i = 0;
-
-      while (i < s.length) {
-        const c = s[i];
-        const next = s[i + 1];
-
-        if (c === next && isConsonant(c) && c !== "n") {
-          result += "っ";
-          i += 1;
-          continue;
-        }
-
-        if (c === "n") {
-          const after = s[i + 1];
-          if (!after) {
-            result += "ん";
-            i += 1;
-            continue;
-          }
-          if (after === "n") {
-            result += "ん";
-            i += 1;
-            continue;
-          }
-          if (!isVowel(after) && after !== "y") {
-            result += "ん";
-            i += 1;
-            continue;
-          }
-        }
-
-        const quad = s.slice(i, i + 4);
-        const tri = s.slice(i, i + 3);
-        const bi = s.slice(i, i + 2);
-
-        if (kanaMap[quad]) {
-          result += kanaMap[quad];
-          i += 4;
-          continue;
-        }
-        if (kanaMap[tri]) {
-          result += kanaMap[tri];
-          i += 3;
-          continue;
-        }
-        if (kanaMap[bi]) {
-          result += kanaMap[bi];
-          i += 2;
-          continue;
-        }
-        if (kanaMap[c]) {
-          result += kanaMap[c];
-          i += 1;
-          continue;
-        }
-
-        result += c;
-        i += 1;
-      }
-
-      return result;
-    }
-
-    function hiraganaToKatakana(input) {
-      return input.replace(/[ぁ-ゖ]/g, (ch) =>
-        String.fromCharCode(ch.charCodeAt(0) + 0x60)
-      );
-    }
-
-    function shouldPreferKatakana(romaji, hiragana) {
-      const patterns = [
-        /fa|fi|fe|fo/,
-        /ti|di|tu|du/,
-        /che|je/,
-        /wi|we/,
-        /va|vi|ve|vo/,
-        /qa|qi|qe|qo/,
-        /[bcdfghjklmnpqrstvwxyz]{3,}/
-      ];
-
-      const knownLoanwords = new Set([
-        "きゃめら",
-        "こんぴゅーたー",
-        "てれび",
-        "すまほ",
-        "あいすくりーむ",
-        "れすとらん",
-        "こーひー",
-        "ほてる",
-        "たくしー"
-      ]);
-
-      return patterns.some((re) => re.test(romaji)) || knownLoanwords.has(hiragana);
-    }
-
-    function buildLocalCandidates(romaji, hiragana) {
-      const result = [];
-      const katakana = hiraganaToKatakana(hiragana);
-      const preferKatakana = shouldPreferKatakana(romaji, hiragana);
-
-      if (preferKatakana) uniquePush(result, katakana);
-
-      (localNamesDictionary[hiragana] || []).forEach((item) => uniquePush(result, item));
-      (localFallbackDictionary[hiragana] || []).forEach((item) => uniquePush(result, item));
-
-      uniquePush(result, hiragana);
-      uniquePush(result, katakana);
-
-      return result;
-    }
-
-    async function fetchCandidatesFromApi(romaji, hiragana) {
-      if (!API_URL || API_URL.includes("your-api.example.com")) {
-        return buildLocalCandidates(romaji, hiragana);
-      }
-
-      const katakana = hiraganaToKatakana(hiragana);
-      const preferKatakana = shouldPreferKatakana(romaji, hiragana);
-
-      try {
-        const url = new URL(API_URL);
-        url.searchParams.set("reading", hiragana);
-        url.searchParams.set("romaji", romaji);
-
-        const response = await fetch(url.toString(), {
-          method: "GET",
-          headers: { "Accept": "application/json" }
-        });
-
-        if (!response.ok) {
-          throw new Error(`API request failed with status ${response.status}`);
-        }
-
-        const data = await response.json();
-        const result = [];
-
-        if (preferKatakana || data.preferKatakana) {
-          uniquePush(result, katakana);
-        }
-
-        (data.names || []).forEach((item) => uniquePush(result, item));
-        (data.words || []).forEach((item) => uniquePush(result, item));
-
-        uniquePush(result, hiragana);
-        uniquePush(result, katakana);
-
-        return result.length ? result : buildLocalCandidates(romaji, hiragana);
-      } catch (error) {
-        console.error("API lookup failed, using local fallback.", error);
-        return buildLocalCandidates(romaji, hiragana);
-      }
-    }
-
-    function currentCandidate() {
-      return state.candidates[state.candidateIndex] || state.readingHiragana || "";
-    }
-
-    function placeCaretAtEnd(el) {
-      el.focus();
-      const selection = window.getSelection();
-      const range = document.createRange();
-      range.selectNodeContents(el);
-      range.collapse(false);
-      selection.removeAllRanges();
-      selection.addRange(range);
-    }
-
-    function renderCandidates() {
-      candidateList.innerHTML = "";
-
-      if (!state.candidates.length) {
-        candidateMeta.textContent = "No active candidates";
-        return;
-      }
-
-      candidateMeta.textContent =
-        `Space to cycle. Current ${state.candidateIndex + 1} / ${state.candidates.length}`;
-
-      state.candidates.forEach((candidate, index) => {
-        const el = document.createElement("div");
-        el.className = "candidate" + (index === state.candidateIndex ? " active" : "");
-        el.textContent = candidate;
-        candidateList.appendChild(el);
-      });
-    }
-
-    function renderEditor() {
-      const committed = escapeHtml(state.committed)
-        .replace(/\n/g, "<br>")
-        .replace(/  /g, " &nbsp;");
-
-      const composing = currentCandidate();
-      const composingHtml = composing
-        ? `<span class="composing">${escapeHtml(composing).replace(/\n/g, "<br>")}</span>`
-        : "";
-
-      editor.innerHTML = `<span class="committed">${committed}</span>${composingHtml}`;
-      renderCandidates();
-      placeCaretAtEnd(editor);
-
-      if (state.readingRomaji) {
-        status.textContent = `reading: ${state.readingRomaji} → ${state.readingHiragana}`;
-      } else {
-        status.innerHTML =
-          'Type romaji like <code>watashi</code>, <code>nihon</code>, <code>gakkou</code>, <code>kyamera</code>.';
-      }
-    }
-
-    async function updateComposition() {
-      state.readingHiragana = romajiToHiragana(state.readingRomaji);
-      const lookupToken = ++state.lookupToken;
-
-      const localCandidates = buildLocalCandidates(state.readingRomaji, state.readingHiragana);
-      state.candidates = localCandidates;
-      state.candidateIndex = 0;
-      renderEditor();
-
-      const apiCandidates = await fetchCandidatesFromApi(
-        state.readingRomaji,
-        state.readingHiragana
-      );
-
-      if (lookupToken !== state.lookupToken) return;
-
-      state.candidates = apiCandidates;
-      state.candidateIndex = 0;
-      renderEditor();
-    }
-
-    function cycleCandidates(direction = 1) {
-      if (!state.candidates.length) return;
-      state.candidateIndex =
-        (state.candidateIndex + direction + state.candidates.length) % state.candidates.length;
-      renderEditor();
-    }
-
-    function commitCurrent(extra = "") {
-      if (state.readingRomaji) {
-        state.committed += currentCandidate();
-      }
-      if (extra) state.committed += extra;
-
-      state.readingRomaji = "";
-      state.readingHiragana = "";
-      state.candidates = [];
-      state.candidateIndex = 0;
-      state.lookupToken += 1;
-
-      renderEditor();
-    }
-
-    function backspace() {
-      if (state.readingRomaji) {
-        state.readingRomaji = state.readingRomaji.slice(0, -1);
-
-        if (state.readingRomaji) {
-          updateComposition();
-        } else {
-          state.readingHiragana = "";
-          state.candidates = [];
-          state.candidateIndex = 0;
-          state.lookupToken += 1;
-          renderEditor();
-        }
-        return;
-      }
-
-      state.committed = state.committed.slice(0, -1);
-      renderEditor();
-    }
-
-    editor.addEventListener("keydown", (e) => {
-      const key = e.key;
-
-      if (key === "Process") return;
-
-      if (key === "Backspace") {
-        e.preventDefault();
-        backspace();
-        return;
-      }
-
-      if (key === " ") {
-        e.preventDefault();
-        if (state.readingRomaji) {
-          cycleCandidates(1);
-        } else {
-          state.committed += " ";
-          renderEditor();
-        }
-        return;
-      }
-
-      if (key === "Enter") {
-        e.preventDefault();
-        commitCurrent("\n");
-        return;
-      }
-
-      if (key === "Escape") {
-        e.preventDefault();
-        if (state.readingRomaji) {
-          const hiraganaIndex = state.candidates.indexOf(state.readingHiragana);
-          state.candidateIndex = hiraganaIndex >= 0 ? hiraganaIndex : 0;
-          renderEditor();
-        }
-        return;
-      }
-
-      if (key === "ArrowRight" && state.readingRomaji) {
-        e.preventDefault();
-        cycleCandidates(1);
-        return;
-      }
-
-      if (key === "ArrowLeft" && state.readingRomaji) {
-        e.preventDefault();
-        cycleCandidates(-1);
-        return;
-      }
-
-      if ([",", ".", "!", "?", ";", ":", "、", "。"].includes(key)) {
-        e.preventDefault();
-        commitCurrent(key);
-        return;
-      }
-
-      if (key.length === 1 && /^[a-zA-Z]$/.test(key)) {
-        e.preventDefault();
-        state.readingRomaji += key.toLowerCase();
-        updateComposition();
-        return;
-      }
-
-      if (key.length === 1) {
-        e.preventDefault();
-        commitCurrent(key);
-      }
-    });
-
-    editor.addEventListener("paste", (e) => {
-      e.preventDefault();
-      const text = (e.clipboardData || window.clipboardData).getData("text");
-
-      for (const ch of text) {
-        if (/^[a-zA-Z]$/.test(ch)) {
-          state.readingRomaji += ch.toLowerCase();
-        } else if (ch === " ") {
-          commitCurrent(" ");
-        } else if (ch === "\n") {
-          commitCurrent("\n");
-        } else {
-          commitCurrent(ch);
-        }
-      }
-
-      if (state.readingRomaji) updateComposition();
-      else renderEditor();
-    });
-
-    editor.addEventListener("mousedown", (e) => {
-      e.preventDefault();
-      placeCaretAtEnd(editor);
-    });
-
-    copyBtn.addEventListener("click", async () => {
-      try {
-        await navigator.clipboard.writeText(state.committed + currentCandidate());
-        copyBtn.textContent = "Copied";
-        setTimeout(() => { copyBtn.textContent = "Copy text"; }, 1200);
-      } catch {
-        copyBtn.textContent = "Copy failed";
-        setTimeout(() => { copyBtn.textContent = "Copy text"; }, 1200);
-      }
-    });
-
-    clearBtn.addEventListener("click", () => {
-      state.committed = "";
-      state.readingRomaji = "";
-      state.readingHiragana = "";
-      state.candidates = [];
-      state.candidateIndex = 0;
-      state.lookupToken += 1;
-      renderEditor();
-    });
-
-    renderEditor();
-  </script>
-</body>
-</html> -->
-
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Browser Japanese IME</title>
   <style>
-    * { box-sizing: border-box; }
+    * {
+      box-sizing: border-box;
+    }
 
     body {
       margin: 0;
@@ -943,6 +179,7 @@
     }
   </style>
 </head>
+
 <body>
   <div class="app">
     <h1>Browser Japanese IME Prototype</h1>
@@ -981,497 +218,483 @@
           <li><code>Esc</code>: return to plain hiragana candidate</li>
           <li><code>← / →</code>: cycle candidates</li>
         </ul>
-
-        <div class="label" style="margin-top:18px;">Dictionary Notes</div>
-        <ul>
-          <li>Put <code>dictionary.json</code> and <code>names.json</code> in the same folder as this HTML file.</li>
-          <li>Keys should be <strong>hiragana</strong>, not romaji.</li>
-          <li>Example: <code>"たべる": ["食べる", "たべる"]</code></li>
-        </ul>
       </div>
     </div>
-  </div>
 
-  <script>
-    const editor = document.getElementById("editor");
-    const status = document.getElementById("status");
-    const candidateMeta = document.getElementById("candidateMeta");
-    const candidateList = document.getElementById("candidateList");
-    const copyBtn = document.getElementById("copyBtn");
-    const clearBtn = document.getElementById("clearBtn");
+    <script>
+      const editor = document.getElementById("editor");
+      const status = document.getElementById("status");
+      const candidateMeta = document.getElementById("candidateMeta");
+      const candidateList = document.getElementById("candidateList");
+      const copyBtn = document.getElementById("copyBtn");
+      const clearBtn = document.getElementById("clearBtn");
 
-    const state = {
-      committed: "",
-      readingRomaji: "",
-      readingHiragana: "",
-      candidates: [],
-      candidateIndex: 0,
-      lookupToken: 0
-    };
+      const state = {
+        committed: "",
+        readingRomaji: "",
+        readingHiragana: "",
+        candidates: [],
+        candidateIndex: 0,
+        lookupToken: 0
+      };
 
-    let localFallbackDictionary = {};
-    let localNamesDictionary = {};
+      let localFallbackDictionary = {};
+      let localNamesDictionary = {};
 
-    const kanaMap = {
-      kya: "きゃ", kyu: "きゅ", kyo: "きょ",
-      gya: "ぎゃ", gyu: "ぎゅ", gyo: "ぎょ",
-      sha: "しゃ", shu: "しゅ", sho: "しょ",
-      sya: "しゃ", syu: "しゅ", syo: "しょ",
-      ja: "じゃ", ju: "じゅ", jo: "じょ",
-      jya: "じゃ", jyu: "じゅ", jyo: "じょ",
-      cha: "ちゃ", chu: "ちゅ", cho: "ちょ",
-      cya: "ちゃ", cyu: "ちゅ", cyo: "ちょ",
-      nya: "にゃ", nyu: "にゅ", nyo: "にょ",
-      hya: "ひゃ", hyu: "ひゅ", hyo: "ひょ",
-      bya: "びゃ", byu: "びゅ", byo: "びょ",
-      pya: "ぴゃ", pyu: "ぴゅ", pyo: "ぴょ",
-      mya: "みゃ", myu: "みゅ", myo: "みょ",
-      rya: "りゃ", ryu: "りゅ", ryo: "りょ",
-      fa: "ふぁ", fi: "ふぃ", fe: "ふぇ", fo: "ふぉ",
-      tsa: "つぁ", tsi: "つぃ", tse: "つぇ", tso: "つぉ",
-      she: "しぇ", che: "ちぇ", je: "じぇ",
-      ti: "てぃ", tu: "とぅ", di: "でぃ", du: "どぅ",
-      wi: "うぃ", we: "うぇ",
-      shi: "し", chi: "ち", tsu: "つ", fu: "ふ",
-      ka: "か", ki: "き", ku: "く", ke: "け", ko: "こ",
-      ga: "が", gi: "ぎ", gu: "ぐ", ge: "げ", go: "ご",
-      sa: "さ", su: "す", se: "せ", so: "そ",
-      za: "ざ", ji: "じ", zu: "ず", ze: "ぜ", zo: "ぞ",
-      ta: "た", te: "て", to: "と",
-      da: "だ", de: "で", do: "ど",
-      na: "な", ni: "に", nu: "ぬ", ne: "ね", no: "の",
-      ha: "は", hi: "ひ", he: "へ", ho: "ほ",
-      ba: "ば", bi: "び", bu: "ぶ", be: "べ", bo: "ぼ",
-      pa: "ぱ", pi: "ぴ", pu: "ぷ", pe: "ぺ", po: "ぽ",
-      ma: "ま", mi: "み", mu: "む", me: "め", mo: "も",
-      ya: "や", yu: "ゆ", yo: "よ",
-      ra: "ら", ri: "り", ru: "る", re: "れ", ro: "ろ",
-      wa: "わ", wo: "を",
-      a: "あ", i: "い", u: "う", e: "え", o: "お"
-    };
+      const kanaMap = {
+        kya: "きゃ", kyu: "きゅ", kyo: "きょ",
+        gya: "ぎゃ", gyu: "ぎゅ", gyo: "ぎょ",
+        sha: "しゃ", shu: "しゅ", sho: "しょ",
+        sya: "しゃ", syu: "しゅ", syo: "しょ",
+        ja: "じゃ", ju: "じゅ", jo: "じょ",
+        jya: "じゃ", jyu: "じゅ", jyo: "じょ",
+        cha: "ちゃ", chu: "ちゅ", cho: "ちょ",
+        cya: "ちゃ", cyu: "ちゅ", cyo: "ちょ",
+        nya: "にゃ", nyu: "にゅ", nyo: "にょ",
+        hya: "ひゃ", hyu: "ひゅ", hyo: "ひょ",
+        bya: "びゃ", byu: "びゅ", byo: "びょ",
+        pya: "ぴゃ", pyu: "ぴゅ", pyo: "ぴょ",
+        mya: "みゃ", myu: "みゅ", myo: "みょ",
+        rya: "りゃ", ryu: "りゅ", ryo: "りょ",
+        fa: "ふぁ", fi: "ふぃ", fe: "ふぇ", fo: "ふぉ",
+        tsa: "つぁ", tsi: "つぃ", tse: "つぇ", tso: "つぉ",
+        she: "しぇ", che: "ちぇ", je: "じぇ",
+        ti: "てぃ", tu: "とぅ", di: "でぃ", du: "どぅ",
+        wi: "うぃ", we: "うぇ",
+        shi: "し", chi: "ち", tsu: "つ", fu: "ふ",
+        ka: "か", ki: "き", ku: "く", ke: "け", ko: "こ",
+        ga: "が", gi: "ぎ", gu: "ぐ", ge: "げ", go: "ご",
+        sa: "さ", su: "す", se: "せ", so: "そ",
+        za: "ざ", ji: "じ", zu: "ず", ze: "ぜ", zo: "ぞ",
+        ta: "た", te: "て", to: "と",
+        da: "だ", de: "で", do: "ど",
+        na: "な", ni: "に", nu: "ぬ", ne: "ね", no: "の",
+        ha: "は", hi: "ひ", he: "へ", ho: "ほ",
+        ba: "ば", bi: "び", bu: "ぶ", be: "べ", bo: "ぼ",
+        pa: "ぱ", pi: "ぴ", pu: "ぷ", pe: "ぺ", po: "ぽ",
+        ma: "ま", mi: "み", mu: "む", me: "め", mo: "も",
+        ya: "や", yu: "ゆ", yo: "よ",
+        ra: "ら", ri: "り", ru: "る", re: "れ", ro: "ろ",
+        wa: "わ", wo: "を",
+        a: "あ", i: "い", u: "う", e: "え", o: "お"
+      };
 
-    function escapeHtml(value) {
-      return value
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#39;");
-    }
+      function escapeHtml(value) {
+        return value
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
 
-    function uniquePush(list, value) {
-      if (value && !list.includes(value)) list.push(value);
-    }
+      function uniquePush(list, value) {
+        if (value && !list.includes(value)) list.push(value);
+      }
 
-    function isVowel(c) {
-      return "aeiou".includes(c);
-    }
+      function isVowel(c) {
+        return "aeiou".includes(c);
+      }
 
-    function isConsonant(c) {
-      return /^[bcdfghjklmnpqrstvwxyz]$/.test(c);
-    }
+      function isConsonant(c) {
+        return /^[bcdfghjklmnpqrstvwxyz]$/.test(c);
+      }
 
-    function romajiToHiragana(input) {
-      let s = input.toLowerCase();
-      let result = "";
-      let i = 0;
+      function romajiToHiragana(input) {
+        let s = input.toLowerCase();
+        let result = "";
+        let i = 0;
 
-            while (i < s.length) {
-        const c = s[i];
-        const next = s[i + 1];
+        while (i < s.length) {
+          const c = s[i];
+          const next = s[i + 1];
 
-        if (c === "-") {
-          result += "ー";
-          i += 1;
-          continue;
-        }
-
-        if (c === next && isConsonant(c) && c !== "n") {
-          result += "っ";
-          i += 1;
-          continue;
-        }
-
-        if (c === "n") {
-          const after = s[i + 1];
-          if (!after) {
-            result += "ん";
+          if (c === "-") {
+            result += "ー";
             i += 1;
             continue;
           }
-          if (after === "n") {
-            result += "ん";
+
+          if (c === next && isConsonant(c) && c !== "n") {
+            result += "っ";
             i += 1;
             continue;
           }
-          if (!isVowel(after) && after !== "y") {
-            result += "ん";
+
+          if (c === "n") {
+            const after = s[i + 1];
+            if (!after) {
+              result += "ん";
+              i += 1;
+              continue;
+            }
+            if (after === "n") {
+              result += "ん";
+              i += 1;
+              continue;
+            }
+            if (!isVowel(after) && after !== "y") {
+              result += "ん";
+              i += 1;
+              continue;
+            }
+          }
+
+
+          const quad = s.slice(i, i + 4);
+          const tri = s.slice(i, i + 3);
+          const bi = s.slice(i, i + 2);
+
+          if (kanaMap[quad]) {
+            result += kanaMap[quad];
+            i += 4;
+            continue;
+          }
+          if (kanaMap[tri]) {
+            result += kanaMap[tri];
+            i += 3;
+            continue;
+          }
+          if (kanaMap[bi]) {
+            result += kanaMap[bi];
+            i += 2;
+            continue;
+          }
+          if (kanaMap[c]) {
+            result += kanaMap[c];
             i += 1;
             continue;
           }
-        }
-        
 
-        const quad = s.slice(i, i + 4);
-        const tri = s.slice(i, i + 3);
-        const bi = s.slice(i, i + 2);
-
-        if (kanaMap[quad]) {
-          result += kanaMap[quad];
-          i += 4;
-          continue;
-        }
-        if (kanaMap[tri]) {
-          result += kanaMap[tri];
-          i += 3;
-          continue;
-        }
-        if (kanaMap[bi]) {
-          result += kanaMap[bi];
-          i += 2;
-          continue;
-        }
-        if (kanaMap[c]) {
-          result += kanaMap[c];
+          result += c;
           i += 1;
-          continue;
         }
 
-        result += c;
-        i += 1;
+        return result;
       }
 
-      return result;
-    }
-
-    function hiraganaToKatakana(input) {
-      return input.replace(/[ぁ-ゖ]/g, (ch) =>
-        String.fromCharCode(ch.charCodeAt(0) + 0x60)
-      );
-    }
-
-    function shouldPreferKatakana(romaji, hiragana) {
-      const patterns = [
-        /fa|fi|fe|fo/,
-        /ti|di|tu|du/,
-        /che|je/,
-        /wi|we/,
-        /va|vi|ve|vo/,
-        /qa|qi|qe|qo/,
-        /[bcdfghjklmnpqrstvwxyz]{3,}/
-      ];
-
-      const knownLoanwords = new Set([
-        "きゃめら",
-        "こんぴゅーたー",
-        "てれび",
-        "すまほ",
-        "あいすくりーむ",
-        "れすとらん",
-        "こーひー",
-        "ほてる",
-        "たくしー"
-      ]);
-
-      return patterns.some((re) => re.test(romaji)) || knownLoanwords.has(hiragana);
-    }
-
-    async function loadDictionaries() {
-      const results = await Promise.allSettled([
-        fetch("./dictionary.json"),
-        fetch("./names.json")
-      ]);
-
-      const [dictResult, namesResult] = results;
-
-      if (dictResult.status === "fulfilled" && dictResult.value.ok) {
-        localFallbackDictionary = await dictResult.value.json();
-      } else {
-        console.error("Failed to load dictionary.json");
+      function hiraganaToKatakana(input) {
+        return input.replace(/[ぁ-ゖ]/g, (ch) =>
+          String.fromCharCode(ch.charCodeAt(0) + 0x60)
+        );
       }
 
-      if (namesResult.status === "fulfilled" && namesResult.value.ok) {
-        localNamesDictionary = await namesResult.value.json();
-      } else {
-        console.warn("Failed to load names.json. Continuing without it.");
+      function shouldPreferKatakana(romaji, hiragana) {
+        const patterns = [
+          /fa|fi|fe|fo/,
+          /ti|di|tu|du/,
+          /che|je/,
+          /wi|we/,
+          /va|vi|ve|vo/,
+          /qa|qi|qe|qo/,
+          /[bcdfghjklmnpqrstvwxyz]{3,}/
+        ];
+
+        const knownLoanwords = new Set([
+          "きゃめら",
+          "こんぴゅーたー",
+          "てれび",
+          "すまほ",
+          "あいすくりーむ",
+          "れすとらん",
+          "こーひー",
+          "ほてる",
+          "たくしー"
+        ]);
+
+        return patterns.some((re) => re.test(romaji)) || knownLoanwords.has(hiragana);
       }
 
-      const wordCount = Object.keys(localFallbackDictionary).length;
-      const nameCount = Object.keys(localNamesDictionary).length;
+      async function loadDictionaries() {
+        const results = await Promise.allSettled([
+          fetch("./dictionary.json"),
+          fetch("./names.json")
+        ]);
 
-      if (wordCount > 0) {
-        status.innerHTML = `Loaded <strong>${wordCount.toLocaleString()}</strong> dictionary entries and <strong>${nameCount.toLocaleString()}</strong> name entries. Type romaji like <code>watashi</code>, <code>nihon</code>, <code>gakkou</code>, <code>kyamera</code>.`;
-      } else {
-        status.innerHTML = `Could not load <code>dictionary.json</code>. Make sure you are serving the folder via <code>http://localhost</code>, not opening the file directly.`;
-      }
-    }
+        const [dictResult, namesResult] = results;
 
-    // function buildLocalCandidates(romaji, hiragana) {
-    //   const result = [];
-    //   const katakana = hiraganaToKatakana(hiragana);
-    //   const preferKatakana = shouldPreferKatakana(romaji, hiragana);
-
-    //   if (preferKatakana) uniquePush(result, katakana);
-
-    //   (localNamesDictionary[hiragana] || []).forEach((item) => uniquePush(result, item));
-    //   (localFallbackDictionary[hiragana] || []).forEach((item) => uniquePush(result, item));
-
-    //   uniquePush(result, hiragana);
-    //   uniquePush(result, katakana);
-
-    //   return result;
-    // }
-
-    function buildLocalCandidates(romaji, hiragana) {
-  const result = [];
-  const katakana = hiraganaToKatakana(hiragana);
-  const preferKatakana = shouldPreferKatakana(romaji, hiragana);
-
-  // Always show hiragana first
-  uniquePush(result, hiragana);
-
-  // For loanwords, show katakana second
-  if (preferKatakana) {
-    uniquePush(result, katakana);
-  }
-
-  // Then show names and kanji candidates
-  (localNamesDictionary[hiragana] || []).forEach((item) => uniquePush(result, item));
-  (localFallbackDictionary[hiragana] || []).forEach((item) => uniquePush(result, item));
-
-  // Ensure katakana is still available even if not preferred
-  uniquePush(result, katakana);
-
-  return result;
-}
-
-    function currentCandidate() {
-      return state.candidates[state.candidateIndex] || state.readingHiragana || "";
-    }
-
-    function placeCaretAtEnd(el) {
-      el.focus();
-      const selection = window.getSelection();
-      const range = document.createRange();
-      range.selectNodeContents(el);
-      range.collapse(false);
-      selection.removeAllRanges();
-      selection.addRange(range);
-    }
-
-    function renderCandidates() {
-      candidateList.innerHTML = "";
-
-      if (!state.candidates.length) {
-        candidateMeta.textContent = "No active candidates";
-        return;
-      }
-
-      candidateMeta.textContent =
-        `Space to cycle. Current ${state.candidateIndex + 1} / ${state.candidates.length}`;
-
-      state.candidates.forEach((candidate, index) => {
-        const el = document.createElement("div");
-        el.className = "candidate" + (index === state.candidateIndex ? " active" : "");
-        el.textContent = candidate;
-        candidateList.appendChild(el);
-      });
-    }
-
-    function renderEditor() {
-      const committed = escapeHtml(state.committed)
-        .replace(/\n/g, "<br>")
-        .replace(/  /g, " &nbsp;");
-
-      const composing = currentCandidate();
-      const composingHtml = composing
-        ? `<span class="composing">${escapeHtml(composing).replace(/\n/g, "<br>")}</span>`
-        : "";
-
-      editor.innerHTML = `<span class="committed">${committed}</span>${composingHtml}`;
-      renderCandidates();
-      placeCaretAtEnd(editor);
-
-      if (state.readingRomaji) {
-        status.textContent = `reading: ${state.readingRomaji} → ${state.readingHiragana}`;
-      }
-    }
-
-    async function updateComposition() {
-      state.readingHiragana = romajiToHiragana(state.readingRomaji);
-      const lookupToken = ++state.lookupToken;
-
-      const candidates = buildLocalCandidates(
-        state.readingRomaji,
-        state.readingHiragana
-      );
-
-      if (lookupToken !== state.lookupToken) return;
-
-      state.candidates = candidates;
-      state.candidateIndex = 0;
-      renderEditor();
-    }
-
-    function cycleCandidates(direction = 1) {
-      if (!state.candidates.length) return;
-      state.candidateIndex =
-        (state.candidateIndex + direction + state.candidates.length) % state.candidates.length;
-      renderEditor();
-    }
-
-    function commitCurrent(extra = "") {
-      if (state.readingRomaji) {
-        state.committed += currentCandidate();
-      }
-      if (extra) state.committed += extra;
-
-      state.readingRomaji = "";
-      state.readingHiragana = "";
-      state.candidates = [];
-      state.candidateIndex = 0;
-      state.lookupToken += 1;
-
-      renderEditor();
-    }
-
-    function backspace() {
-      if (state.readingRomaji) {
-        state.readingRomaji = state.readingRomaji.slice(0, -1);
-
-        if (state.readingRomaji) {
-          updateComposition();
+        if (dictResult.status === "fulfilled" && dictResult.value.ok) {
+          localFallbackDictionary = await dictResult.value.json();
         } else {
-          state.readingHiragana = "";
-          state.candidates = [];
-          state.candidateIndex = 0;
-          state.lookupToken += 1;
-          renderEditor();
+          console.error("Failed to load dictionary.json");
         }
-        return;
+
+        if (namesResult.status === "fulfilled" && namesResult.value.ok) {
+          localNamesDictionary = await namesResult.value.json();
+        } else {
+          console.warn("Failed to load names.json. Continuing without it.");
+        }
+
+        const wordCount = Object.keys(localFallbackDictionary).length;
+        const nameCount = Object.keys(localNamesDictionary).length;
+
+        if (wordCount > 0) {
+          status.innerHTML = `Loaded <strong>${wordCount.toLocaleString()}</strong> dictionary entries and <strong>${nameCount.toLocaleString()}</strong> name entries. Type romaji like <code>watashi</code>, <code>nihon</code>, <code>gakkou</code>, <code>kyamera</code>.`;
+        } else {
+          status.innerHTML = `Could not load <code>dictionary.json</code>. Make sure you are serving the folder via <code>http://localhost</code>, not opening the file directly.`;
+        }
       }
 
-      state.committed = state.committed.slice(0, -1);
-      renderEditor();
-    }
+      function buildLocalCandidates(romaji, hiragana) {
+        const result = [];
+        const katakana = hiraganaToKatakana(hiragana);
+        const preferKatakana = shouldPreferKatakana(romaji, hiragana);
 
-    editor.addEventListener("keydown", (e) => {
-      const key = e.key;
+        // Always show hiragana first
+        uniquePush(result, hiragana);
 
-      if (key === "Process") return;
+        // For loanwords, show katakana second
+        if (preferKatakana) {
+          uniquePush(result, katakana);
+        }
 
-      if (key === "Backspace") {
-        e.preventDefault();
-        backspace();
-        return;
+        // Then show names and kanji candidates
+        (localNamesDictionary[hiragana] || []).forEach((item) => uniquePush(result, item));
+        (localFallbackDictionary[hiragana] || []).forEach((item) => uniquePush(result, item));
+
+        // Ensure katakana is still available even if not preferred
+        uniquePush(result, katakana);
+
+        return result;
       }
 
-      if (key === " ") {
-        e.preventDefault();
+      function currentCandidate() {
+        return state.candidates[state.candidateIndex] || state.readingHiragana || "";
+      }
+
+      function placeCaretAtEnd(el) {
+        el.focus();
+        const selection = window.getSelection();
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        range.collapse(false);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+
+      function renderCandidates() {
+        candidateList.innerHTML = "";
+
+        if (!state.candidates.length) {
+          candidateMeta.textContent = "No active candidates";
+          return;
+        }
+
+        candidateMeta.textContent =
+          `Space to cycle. Current ${state.candidateIndex + 1} / ${state.candidates.length}`;
+
+        state.candidates.forEach((candidate, index) => {
+          const el = document.createElement("div");
+          el.className = "candidate" + (index === state.candidateIndex ? " active" : "");
+          el.textContent = candidate;
+          candidateList.appendChild(el);
+        });
+      }
+
+      function renderEditor() {
+        const committed = escapeHtml(state.committed)
+          .replace(/\n/g, "<br>")
+          .replace(/  /g, " &nbsp;");
+
+        const composing = currentCandidate();
+        const composingHtml = composing
+          ? `<span class="composing">${escapeHtml(composing).replace(/\n/g, "<br>")}</span>`
+          : "";
+
+        editor.innerHTML = `<span class="committed">${committed}</span>${composingHtml}`;
+        renderCandidates();
+        placeCaretAtEnd(editor);
+
         if (state.readingRomaji) {
+          status.textContent = `reading: ${state.readingRomaji} → ${state.readingHiragana}`;
+        }
+      }
+
+      async function updateComposition() {
+        state.readingHiragana = romajiToHiragana(state.readingRomaji);
+        const lookupToken = ++state.lookupToken;
+
+        const candidates = buildLocalCandidates(
+          state.readingRomaji,
+          state.readingHiragana
+        );
+
+        if (lookupToken !== state.lookupToken) return;
+
+        state.candidates = candidates;
+        state.candidateIndex = 0;
+        renderEditor();
+      }
+
+      function cycleCandidates(direction = 1) {
+        if (!state.candidates.length) return;
+        state.candidateIndex =
+          (state.candidateIndex + direction + state.candidates.length) % state.candidates.length;
+        renderEditor();
+      }
+
+      function commitCurrent(extra = "") {
+        if (state.readingRomaji) {
+          state.committed += currentCandidate();
+        }
+        if (extra) state.committed += extra;
+
+        state.readingRomaji = "";
+        state.readingHiragana = "";
+        state.candidates = [];
+        state.candidateIndex = 0;
+        state.lookupToken += 1;
+
+        renderEditor();
+      }
+
+      function backspace() {
+        if (state.readingRomaji) {
+          state.readingRomaji = state.readingRomaji.slice(0, -1);
+
+          if (state.readingRomaji) {
+            updateComposition();
+          } else {
+            state.readingHiragana = "";
+            state.candidates = [];
+            state.candidateIndex = 0;
+            state.lookupToken += 1;
+            renderEditor();
+          }
+          return;
+        }
+
+        state.committed = state.committed.slice(0, -1);
+        renderEditor();
+      }
+
+      editor.addEventListener("keydown", (e) => {
+        const key = e.key;
+
+        if (key === "Process") return;
+
+        if (key === "Backspace") {
+          e.preventDefault();
+          backspace();
+          return;
+        }
+
+        if (key === " ") {
+          e.preventDefault();
+          if (state.readingRomaji) {
+            cycleCandidates(1);
+          } else {
+            state.committed += " ";
+            renderEditor();
+          }
+          return;
+        }
+
+        if (key === "Enter") {
+          e.preventDefault();
+
+          if (state.readingRomaji) {
+            // If typing → just commit, NO newline
+            commitCurrent();
+          } else {
+            // If not typing → create new line
+            state.committed += "\n";
+            renderEditor();
+          }
+
+          return;
+        }
+
+        if (key === "Escape") {
+          e.preventDefault();
+          if (state.readingRomaji) {
+            const hiraganaIndex = state.candidates.indexOf(state.readingHiragana);
+            state.candidateIndex = hiraganaIndex >= 0 ? hiraganaIndex : 0;
+            renderEditor();
+          }
+          return;
+        }
+
+        if (key === "ArrowRight" && state.readingRomaji) {
+          e.preventDefault();
           cycleCandidates(1);
-        } else {
-          state.committed += " ";
-          renderEditor();
+          return;
         }
-        return;
-      }
 
-      if (key === "Enter") {
-        e.preventDefault();
-        commitCurrent("\n");
-        return;
-      }
-
-      if (key === "Escape") {
-        e.preventDefault();
-        if (state.readingRomaji) {
-          const hiraganaIndex = state.candidates.indexOf(state.readingHiragana);
-          state.candidateIndex = hiraganaIndex >= 0 ? hiraganaIndex : 0;
-          renderEditor();
+        if (key === "ArrowLeft" && state.readingRomaji) {
+          e.preventDefault();
+          cycleCandidates(-1);
+          return;
         }
-        return;
-      }
 
-      if (key === "ArrowRight" && state.readingRomaji) {
-        e.preventDefault();
-        cycleCandidates(1);
-        return;
-      }
-
-      if (key === "ArrowLeft" && state.readingRomaji) {
-        e.preventDefault();
-        cycleCandidates(-1);
-        return;
-      }
-
-      if ([",", ".", "!", "?", ";", ":", "、", "。"].includes(key)) {
-        e.preventDefault();
-        commitCurrent(key);
-        return;
-      }
-
-           if (key.length === 1 && /^[a-zA-Z-]$/.test(key)) {
-        e.preventDefault();
-        state.readingRomaji += key.toLowerCase();
-        updateComposition();
-        return;
-      }
-
-      if (key.length === 1) {
-        e.preventDefault();
-        commitCurrent(key);
-      }
-    });
-
-    editor.addEventListener("paste", (e) => {
-      e.preventDefault();
-      const text = (e.clipboardData || window.clipboardData).getData("text");
-
-      for (const ch of text) {
-                if (/^[a-zA-Z-]$/.test(ch)) {
-          state.readingRomaji += ch.toLowerCase();
-        } else if (ch === " ") {
-          commitCurrent(" ");
-        } else if (ch === "\n") {
-          commitCurrent("\n");
-        } else {
-          commitCurrent(ch);
+        if ([",", ".", "!", "?", ";", ":", "、", "。"].includes(key)) {
+          e.preventDefault();
+          commitCurrent(key);
+          return;
         }
-      }
 
-      if (state.readingRomaji) updateComposition();
-      else renderEditor();
-    });
+        if (key.length === 1 && /^[a-zA-Z-]$/.test(key)) {
+          e.preventDefault();
+          state.readingRomaji += key.toLowerCase();
+          updateComposition();
+          return;
+        }
 
-    editor.addEventListener("mousedown", (e) => {
-      e.preventDefault();
-      placeCaretAtEnd(editor);
-    });
+        if (key.length === 1) {
+          e.preventDefault();
+          commitCurrent(key);
+        }
+      });
 
-    copyBtn.addEventListener("click", async () => {
-      try {
-        await navigator.clipboard.writeText(state.committed + currentCandidate());
-        copyBtn.textContent = "Copied";
-        setTimeout(() => { copyBtn.textContent = "Copy text"; }, 1200);
-      } catch {
-        copyBtn.textContent = "Copy failed";
-        setTimeout(() => { copyBtn.textContent = "Copy text"; }, 1200);
-      }
-    });
+      editor.addEventListener("paste", (e) => {
+        e.preventDefault();
+        const text = (e.clipboardData || window.clipboardData).getData("text");
 
-    clearBtn.addEventListener("click", () => {
-      state.committed = "";
-      state.readingRomaji = "";
-      state.readingHiragana = "";
-      state.candidates = [];
-      state.candidateIndex = 0;
-      state.lookupToken += 1;
+        for (const ch of text) {
+          if (/^[a-zA-Z-]$/.test(ch)) {
+            state.readingRomaji += ch.toLowerCase();
+          } else if (ch === " ") {
+            commitCurrent(" ");
+          } else if (ch === "\n") {
+            commitCurrent("\n");
+          } else {
+            commitCurrent(ch);
+          }
+        }
+
+        if (state.readingRomaji) updateComposition();
+        else renderEditor();
+      });
+
+      editor.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        placeCaretAtEnd(editor);
+      });
+
+      copyBtn.addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(state.committed + currentCandidate());
+          copyBtn.textContent = "Copied";
+          setTimeout(() => { copyBtn.textContent = "Copy text"; }, 1200);
+        } catch {
+          copyBtn.textContent = "Copy failed";
+          setTimeout(() => { copyBtn.textContent = "Copy text"; }, 1200);
+        }
+      });
+
+      clearBtn.addEventListener("click", () => {
+        state.committed = "";
+        state.readingRomaji = "";
+        state.readingHiragana = "";
+        state.candidates = [];
+        state.candidateIndex = 0;
+        state.lookupToken += 1;
+        renderEditor();
+      });
+
       renderEditor();
-    });
-
-    renderEditor();
-    loadDictionaries();
-  </script>
+      loadDictionaries();
+    </script>
 </body>
+
 </html>

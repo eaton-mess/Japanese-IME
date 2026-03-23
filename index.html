@@ -185,7 +185,7 @@
     <h1>Browser Japanese IME Prototype</h1>
     <p>
       Hiragana-first browser IME using local JSON dictionaries.
-      Press <strong>Space</strong> to cycle candidates and <strong>Enter</strong> to commit.
+      Press <strong>Space</strong> to cycle readings and <strong>Enter</strong> to commit.
     </p>
 
     <div class="grid">
@@ -197,8 +197,8 @@
         </div>
 
         <div class="candidate-bar">
-          <div class="label">Candidates</div>
-          <div id="candidateMeta" class="meta">No active candidates</div>
+          <div class="label">Readings</div>
+          <div id="candidateMeta" class="meta">No active readings</div>
           <div id="candidateList" class="candidate-list"></div>
         </div>
 
@@ -212,11 +212,11 @@
         <div class="label">Keys</div>
         <ul>
           <li><code>a-z</code>: build romaji reading</li>
-          <li><code>Space</code>: cycle candidates</li>
-          <li><code>Enter</code>: commit current candidate</li>
+          <li><code>Space</code>: cycle readings</li>
+          <li><code>Enter</code>: commit current reading</li>
           <li><code>Backspace</code>: edit current reading first</li>
-          <li><code>Esc</code>: return to plain hiragana candidate</li>
-          <li><code>← / →</code>: cycle candidates</li>
+          <li><code>Esc</code>: return to plain hiragana reading</li>
+          <li><code>← / →</code>: cycle readings</li>
         </ul>
       </div>
     </div>
@@ -429,7 +429,7 @@
         const nameCount = Object.keys(localNamesDictionary).length;
 
         if (wordCount > 0) {
-          status.innerHTML = `Loaded <strong>${wordCount.toLocaleString()}</strong> dictionary entries and <strong>${nameCount.toLocaleString()}</strong> name entries. Type romaji like <code>watashi</code>, <code>nihon</code>, <code>gakkou</code>, <code>kyamera</code>.`;
+          status.innerHTML = `Loaded <strong>${wordCount.toLocaleString()}</strong> dictionary entries.`;
         } else {
           status.innerHTML = `Could not load <code>dictionary.json</code>. Make sure you are serving the folder via <code>http://localhost</code>, not opening the file directly.`;
         }
@@ -476,7 +476,7 @@
         candidateList.innerHTML = "";
 
         if (!state.candidates.length) {
-          candidateMeta.textContent = "No active candidates";
+          candidateMeta.textContent = "No active readings";
           return;
         }
 
